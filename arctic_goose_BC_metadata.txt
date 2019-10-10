@@ -1,0 +1,37 @@
+field	units	datatype	description	methods
+num_ID	NA	integer	unique numeric identifier for each individual in the dataset	
+date_ID	date-order collected	character	"unique character identifier based on the date the individual was collected and the order in which it was collected on that day, some days"	
+collectiondate	month/day/year	date	date on which individual was collected	
+year	years	integer	year during which individual was collected	
+num_month	month	integer	numeric month during which individual was collected	
+month	month of year	character	name of month during which individual was collected	
+season	non-binary factor	integer	"because winters range over two years (October through following February), we used the ""winter season"" as an identifier of the winter during which and individual was collected"	
+dayssince	days	integer	number of days since Oct 5 of associated year	
+age	J or A	character	code for juvenile or adult	aged based on plumage characteristics
+sex	F or M	character	code for female or male	sexed by cloacal examination
+species 	four letter avian species code	character	four letter avian species code	visual determination
+phase	W or B or I	character	"corresponds to plumage phase (white, blue, or interphase) of snow geese only"	visual determination
+latitude	decimal degrees	double	approximate latitude at which individual was collected	
+longitude	decimal degrees	double	approximate longitude at which individual was collected	
+culmen1	mm	double	Upper mandible length from the bottom of the v-point to the distal end of the bill	Based on methods by Dzubin and Cooch (1992)
+culmen2	mm	double	Upper mandible length from the proximal tip of the posterior lateral extension to the distal end of the bill	Based on methods by Dzubin and Cooch (1992)
+middle_toe	mm	double	Length of the middle phalanx from the proximal articular surface as the juncture of the tarametatarsus to the distal end of the toe at the base of the claw	Based on methods by Dzubin and Cooch (1992)
+total_head	mm	double	Length of the skull from back of the head to the distal tip of the bill	Based on methods by Dzubin and Cooch (1992)
+total_tarsus	mm	double	Length from the posterior junction of the tibiotarsus and the tarametatarsus to the distal junction of the tarsometatarsus to the base of the middle toe	Based on methods by Dzubin and Cooch (1992)
+wing	mm	double	Length from anterior edge of wing at the wrist joint to the end of the longest primary	Based on methods by Dzubin and Cooch (1992)
+thaw_mass	g	double	Mass in grams of the thawed carcass including digestive tract and its contents	Based on methods by Ballard et al. (2006)
+ingestafree_mass	g	double	"Individual parts of the gastrointestinal system, including the esophagus, proventriculous, gizzard, and intestines, were weighed to the nearest 0.10 g, then emptied of all ingested materials and reweighed. Ingesta-free body mass is equal to the mass of ingested material subtracted from the mass of the featherless carcass "	Based on methods by Ballard et al. (2006)
+defeathered_mass	g	double	"Mass in grams of thawed carcass after all body feathers were sheared from the carcass using electric shears, and remiges and retrices were clipped as close to the skin as possible with hand shears (includes digestive tract contents)"	Based on methods by Ballard et al. (2006)
+wet_bodymass	g	double	Mass of the thawed carcass excluding the digestive tract and its contents	Based on methods by Ballard et al. (2006)
+dry_mass	g	double	Mass of the thawed carcass excluding the digestive tract and its contents after being dried to constant mass	Based on methods by Ballard et al. (2006)
+ab_fat	g	double	Mass of abdominal fat pad	Based on methods by Ballard et al. (2006)
+blg	g	double	"Mass of right breast  (both supracoracoides and pectoral muscles), the right leg, and the empty gizzard"	Based on methods by Ballard et al. (2006)
+breast	g	double	Mass of right breast muscle	Based on methods by Ballard et al. (2006)
+fat_mass	g	double	Mass of lipids contained in body tissues	Based on methods by Ballard et al. (2006)
+fat_percent	%	double	Percent of body mass made up of lipid	Based on methods by Ballard et al. (2006)
+protein_mass	g	double	Mass of protein contained in body tissues	Based on methods by Ballard et al. (2006)
+protein_percent	%	double	Percent of body mass made up of protein	Based on methods by Ballard et al. (2006)
+water_mass	g	double	Mass of water in body tissues (Equal to wet mass - dry mass)	Based on methods by Ballard et al. (2006)
+water_percent	%	double	Percent of body mass made up of water	Based on methods by Ballard et al. (2006)
+ash_mass	g	double	Mass of minerals in body tissues	Based on methods by Ballard et al. (2006)
+ash_percent	%	double	Percent of body mass made up of minerals	Based on methods by Ballard et al. (2006)
