@@ -1,0 +1,800 @@
+---
+title: "Temporal Trends in Body Condition of Arctic Geese Wintering in the Mississippi Alluvial Valley: Statistical Analysis"
+author: "LGCarlson"
+date: "2/17/2019"
+output: html_document
+---
+# Abstract
+<br>
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+
+Midcontinent populations of arctic nesting geese (hereafter, arctic geese), including greater white-fronted geese Anser albifrons frontalis, lesser snow geese Anser caerulescens caerulescens, and Ross’s geese Anser rossii have increased in abundance and shifted their winter distribution in recent decades. Consequently, the number of arctic geese wintering in the Mississippi Alluvial Valley (MAV) has increased since the 1980’s. Stored endogenous nutrients are critically important to the life cycle of arctic geese as they are used to complete long-distance migration events, survive harsh winters, and supplement nutrients needed for reproduction. This study tracked temporal changes in body condition of arctic geese during the wintering period. Arctic geese were collected from October–February 2015–2016 and 2016–2017 in eastern Arkansas, USA. Proximate analysis was used to determine size of lipid and protein stores as an index of body condition. Protein stores were more stable through time than lipids, but a slight increase was observed in all species as winter progressed. Mean lipid stores were dynamic and were highest in November (x̄ greater white-fronted = 442.6 g, x̄ snow = 308.0 g, x̄ Ross’s = 268.25 g) and lowest in February (x̄ greater white-fronted = 215.1 g, x̄ snow = 142.0 g, x̄ Ross’s = 103.0 g). Greater white-fronted geese arrived earliest to the MAV and experienced an increase in endogenous lipid stores during early winter when high-energy food resources were most abundant. Conversely, snow and Ross’s geese arrived to the MAV later and did not appear to increase their lipid stores upon arrival. All three species experienced a decline in stored lipid mass as winter progressed; the decline may have been driven by a combination of factors such as resource depletion, a shift in dietary needs, physiological factors, hunting pressure, and increased energetic demands. An improved understanding of the role that “non-traditional” wintering grounds exert on the nutrient dynamics of arctic geese may aid in the management of growing and shifting populations.
+Keywords: agriculture, Arkansas, endogenous, greater white-fronted goose, lesser snow goose, lipids, proximate analysis, Ross’s goose
+
+</div>
+
+<br>
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999) #turn off scientific notation
+check = function(x){summary(as.factor(x))} #create check function
+
+# Library check helper function -------------------------------------------
+library_check<- function(libraries) {
+  ## Details
+  # This function will check for and then either load or install any libraries needed to run subsequent functions
+  
+  # Args:
+  # libraries = Vector of required library names
+  
+  # Returns: NA, just downloads/loads libraries into current work space.
+  
+  ## Start function
+  lapply(libraries, FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  })
+  ## End function
+}
+
+# Load libraries
+libraries.needed<- c("tidyverse", "here", "ggplot2","ggfortify", "dplyr", "formattable", "ggpubr", "broom",
+                     "AICcmodavg", "multcomp", "qpcR", "snakecase", "here")
+
+
+library_check(libraries.needed)
+theme_set(theme_light()) #adjust theme
+
+bc_data<-read_csv(here("arctic_goose_BC_data.csv"))
+
+```
+
+
+```{r set theme, echo=FALSE, message=FALSE, warning=FALSE}
+#Create plot theme.
+LGCtheme <- theme(strip.background = element_blank(),
+        panel.grid = element_blank(),
+        axis.title = element_text(size = 13),
+        axis.text = element_text(size = 12), 
+        legend.text = element_text(size = 12), 
+        legend.background = element_blank(),
+        strip.text = element_text(size = 12, color = "black"))
+
+gooselabs<-as_labeller(c("GWFG" = "Greater white-fronted goose", "ROGO" = "Ross's goose", "SNGO" = "Snow goose"))
+```
+
+
+```{r create dataframe, echo=FALSE, message=FALSE, warning=FALSE}
+bodysize_df <- bc_data %>% 
+  dplyr::select(num_ID, date_ID, species, age, sex, culmen1, middle_toe, total_head, total_tarsus, wing, 
+                thaw_mass, protein_mass, fat_mass, ash_mass, water_mass) %>% 
+  filter(total_head > 20, 
+         wing > 60)
+#filtering removed extreme outliers (data recording errors)
+```
+
+```{r loop through species df, echo=FALSE, message=FALSE, warning=FALSE}
+species<-c("GWFG","ROGO","SNGO")
+species_df<-list()
+
+for(s in species){
+
+species_df[[s]] <- bodysize_df %>% 
+  filter(species == s)
+}
+```
+
+# Statistical Methods
+
+<br>
+
+## Principle Components Analysis
+
+<br>
+
+*Methods:* As an intermediate step, we performed a principle component analysis (PCA) using five morphological measurements (culmen, head length, tarsus length, middle toe length, and wing chord) to create a composite variable (i.e., principal component) to represent structural size (Alisauskas and Ankney 1987). We conducted a PCA for each species using prcomp in the Program R statistical package (R Core Development Team) and generated eigenvalues to assess the proportion of total variance in structural size explained by each of the principle components. Subsequently, we conducted a regression analysis to examine the relationship of the principle component that explained the most variation in structural size (PC1) with lipid and protein content (Ankney and Alisauskas 1987). 
+
+
+```{r gwfg pca, echo=FALSE, message=FALSE, warning=FALSE}
+gwfg_pca<-species_df[["GWFG"]] %>% 
+  dplyr::select(culmen1, middle_toe, total_head, total_tarsus, wing)
+
+
+g_pca <- prcomp(gwfg_pca, center = TRUE, scale. = TRUE)
+
+g_plot<-ggplot2::autoplot(g_pca, data = species_df[["GWFG"]],colour = "sex",loadings = T, loadings.colour = "black",loadings.label = T, loadings.label.color = "black") +  LGCtheme +
+  theme(legend.position = c(0.1, 0.92), legend.title = element_blank(), legend.background = element_blank()) +
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(title = "Greater white-fronted")
+
+gwfg_df<-data.frame(num_ID = species_df[["GWFG"]]$num_ID,sex = species_df[["GWFG"]]$sex, g_pca$x) %>% 
+  left_join(species_df[["GWFG"]], by = c("num_ID", "sex"))
+```
+
+
+```{r rogo pca, echo=FALSE, message=FALSE, warning=FALSE}
+rogo_pca<-species_df[["ROGO"]] %>% 
+  dplyr::select(culmen1, middle_toe, total_head, total_tarsus, wing)
+
+
+r_pca <- prcomp(rogo_pca, center = TRUE, scale. = TRUE)
+
+r_plot<-ggplot2::autoplot(r_pca, data = species_df[["ROGO"]],colour = "sex",loadings = T, loadings.colour = "black",loadings.label = T, loadings.label.color = "black") + theme(legend.position="none") + LGCtheme +
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + labs(title = "Ross's goose")
+
+rogo_df<-data.frame(num_ID = species_df[["ROGO"]]$num_ID,sex = species_df[["ROGO"]]$sex, r_pca$x) %>% 
+  left_join(species_df[["ROGO"]], by = c("num_ID", "sex"))
+```
+
+
+```{r sngo pca, echo=FALSE, message=FALSE, warning=FALSE}
+sngo_pca<-species_df[["SNGO"]] %>% 
+  dplyr::select(culmen1, middle_toe, total_head, total_tarsus, wing)
+
+
+s_pca <- prcomp(sngo_pca, center = TRUE, scale. = TRUE)
+
+s_plot<-ggplot2::autoplot(s_pca, data = species_df[["SNGO"]],colour = "sex",loadings = T, loadings.colour = "black",loadings.label = T, loadings.label.color = "black") + theme(legend.position="none")  + LGCtheme +
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + labs(title = "Snow goose")
+
+sngo_df<-data.frame(num_ID = species_df[["SNGO"]]$num_ID,sex = species_df[["SNGO"]]$sex, s_pca$x) %>% 
+  left_join(species_df[["SNGO"]], by = c("num_ID", "sex"))
+```
+
+
+
+```{r pca figs, fig.width= 9.5, fig.height=3.8, echo=FALSE, message=FALSE, warning=FALSE}
+ggpubr::ggarrange(g_plot,r_plot,s_plot,ncol = 3, nrow = 1, align = "hv")
+pca_df<-bind_rows(gwfg_df, rogo_df, sngo_df) 
+```
+
+*Results:* Principle component analysis for each species effectively reduced five morphological measurements to a single composite variable used as an index of body size. For greater white-fronted geese, PC1 accounted for 67.2% of the variation in the structural measurements. For snow and Ross’s geese PC1 accounted for 73.0% and 70.1% of the variation, respectively. For all three species, PC2 accounted for less than 15.0% of the variation in the structural measurements, thus we elected to use PC1 as the index of structural size. 
+
+
+## Regression analysis (PCA)
+
+<br>
+
+### GWFG
+
+```{r pc1 mods for gwfg, echo=FALSE, message=FALSE,warning=FALSE}
+gpmod<-lm(protein_mass~PC1, data = gwfg_df)
+broom::tidy(summary(gpmod)) %>% 
+  mutate_at(2:4,round,2) %>% 
+  mutate_at(5,round,4) %>% 
+  janitor::clean_names() %>% 
+  mutate(model = "protein ~ PC1") %>% 
+  dplyr::select(model, everything()) %>% 
+  formattable(align = c(rep("l",5)))
+
+gfmod<-lm(fat_mass~PC1, data = gwfg_df)
+broom::tidy(summary(gfmod)) %>% 
+  mutate_at(2:4,round,2) %>% 
+  mutate_at(5,round,4) %>% 
+  janitor::clean_names() %>% 
+  mutate(model = "fat ~ PC1") %>% 
+  dplyr::select(model, everything()) %>% 
+  formattable(align = c(rep("l",5)))
+
+
+gtmod<-(lm(thaw_mass~PC1, data = gwfg_df))
+```
+***
+
+### ROGO
+
+```{r pc1 mods for rogo, echo=FALSE, message=FALSE,warning=FALSE}
+rpmod<-lm(protein_mass~PC1, data = rogo_df)
+broom::tidy(summary(rpmod)) %>% 
+  mutate_at(2:4,round,2) %>% 
+  mutate_at(5,round,4) %>% 
+  janitor::clean_names() %>% 
+  mutate(model = "protein ~ PC1") %>% 
+  dplyr::select(model, everything()) %>% 
+  formattable(align = c(rep("l",5)))
+
+rfmod<-lm(fat_mass~PC1, data = rogo_df)
+broom::tidy(summary(rfmod)) %>% 
+  mutate_at(2:4,round,2) %>% 
+  mutate_at(5,round,4) %>% 
+  janitor::clean_names() %>% 
+  mutate(model = "fat ~ PC1") %>% 
+  dplyr::select(model, everything()) %>% 
+  formattable(align = c(rep("l",5)))
+
+rtmod<-(lm(thaw_mass~PC1, data = rogo_df))
+```
+***
+
+### SNGO
+
+```{r pc1 mods for sngo, echo=FALSE, message=FALSE,warning=FALSE}
+spmod<-lm(protein_mass~PC1, data = sngo_df)
+broom::tidy(summary(spmod)) %>% 
+  mutate_at(2:4,round,2) %>% 
+  mutate_at(5,round,4) %>% 
+  janitor::clean_names() %>% 
+  mutate(model = "protein ~ PC1") %>% 
+  dplyr::select(model, everything()) %>% 
+  formattable(align = c(rep("l",5)))
+
+sfmod<-lm(fat_mass~PC1, data = sngo_df)
+broom::tidy(summary(sfmod)) %>% 
+  mutate_at(2:4,round,2) %>% 
+  mutate_at(5,round,4) %>% 
+  janitor::clean_names() %>% 
+  mutate(model = "fat ~ PC1") %>% 
+  dplyr::select(model, everything()) %>% 
+  formattable(align = c(rep("l",5)))
+
+stmod<-(lm(thaw_mass~PC1, data = sngo_df))
+```
+
+```{r merge coefs, echo=FALSE, message=FALSE, warning=FALSE}
+coefficienttrib<-tribble(
+  ~species, ~masstype, ~R2, ~p, ~x, ~y,
+  "GWFG", "fat_mass", summary(gfmod)$r.squared, summary(gfmod)$coefficients[2,4], -3.5, 600,
+  "GWFG", "protein_mass", summary(gpmod)$r.squared, summary(gpmod)$coefficients[2,4],-4, 600,
+  "GWFG", "thaw_mass", summary(gtmod)$r.squared, summary(gtmod)$coefficients[2,4],-4, 3000,
+  "ROGO", "fat_mass", summary(rfmod)$r.squared, summary(rfmod)$coefficients[2,4],-2, 600,
+  "ROGO", "protein_mass", summary(rpmod)$r.squared, summary(rpmod)$coefficients[2,4],-2, 600,
+  "ROGO", "thaw_mass", summary(rtmod)$r.squared, summary(rtmod)$coefficients[2,4],-2, 3000,
+  "SNGO", "fat_mass", summary(sfmod)$r.squared, summary(sfmod)$coefficients[2,4],4.5, 600,
+  "SNGO", "protein_mass", summary(spmod)$r.squared, summary(spmod)$coefficients[2,4],5, 600,
+  "SNGO", "thaw_mass", summary(stmod)$r.squared, summary(stmod)$coefficients[2,4],5, 3000
+) %>% 
+  mutate_at(3:4,round,2) %>% 
+  mutate(pval = paste("p=",p,sep = "")) %>% 
+  mutate(Rsq = paste("R2=",p,sep = ""))
+```
+
+<br>
+
+*Results:* Total lipids (g) were correlated with body mass for all species but only weakly related to PC1 representing structural size. Total protein (g) was highly correlated with total body mass and structural size (PC1) for all species. To control for differing body size among individuals, total lipid and protein were corrected for structural size (PC1) by species.
+
+*Table 2 in manuscript* 
+
+```{r plot relationships to pc1, echo=FALSE, message=FALSE, warning=FALSE}
+pca_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, thaw_mass, protein_mass, fat_mass) %>% 
+  gather(key = "masstype", value = "massvalue", 5:7) %>% 
+  left_join(coefficienttrib, by = c("species","masstype")) %>% 
+  ggplot(aes(x = PC1, y = massvalue)) + geom_point() + geom_smooth(method = "lm", color = "black", lty = 2) +
+  facet_grid(rows = vars(masstype), cols = vars(species), scales = "free") + LGCtheme + 
+  geom_text(aes(x = x, y = y, label = pval)) +
+  geom_text(aes(x = x, y = y, label = Rsq), vjust = 2) +
+  labs(y = "Mass (g)")
+```
+
+<br>
+
+## Calculate size-corrected protein and fat
+
+*Methods:* If a significant linear relationship (p ≤ 0.05) was detected, we applied a correction factor to adjust lipid and protein for within-species differences in structural size (Ankney and Alisauskas 1991). The correction factor derived by Ankney and Alisauskas (1991) used the residuals from the linear regression equation to correct for structural size. The corrected values were used in further analyses. We used the Ankney and Alisauskas (1991) equation:
+
+<br>
+
+### y1=yobs-[a+b(PC1)]+Ӯobs                                                              
+
+* y1 = corrected value
+
+* a = y-intercept of regression line
+
+* b = the slope of the regression line
+
+* yobs = actual value
+
+* Ӯobs = mean of actual values
+
+<br>
+
+
+### GWFG 
+
+Figures show mass of interest (protein or fat) relationship with PC1 before and after correction. If correction worked properly, there should be no relationship between mass and PC1 after correction. 
+```{r pc correction gwfg, echo=F, message=F, warning=F, fig.height=4, fig.width=6, fig.align="center"}
+#store mean value
+meanpro = mean(gwfg_df$protein_mass)
+meanfat = mean(gwfg_df$fat_mass)
+
+#use correction equation to calculate corrected mass
+gwfg_df<-gwfg_df %>% 
+  mutate(predpro = protein_mass - (summary(gpmod)$coefficients[1,1] + (summary(gpmod)$coefficients[2,1]*PC1)) + meanpro) %>% 
+  mutate(predfat = fat_mass - (summary(gfmod)$coefficients[1,1] + (summary(gfmod)$coefficients[2,1]*PC1)) + meanfat)
+
+gwfg_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, protein_mass, predpro) %>% 
+  dplyr::rename("Uncorrected protein" = "protein_mass", "Corrected protein" = "predpro") %>% 
+  gather(key = "masstype", value = "massvalue", 5:6) %>% 
+  ggplot(aes(x = massvalue, y = PC1)) + geom_point(aes(color = sex)) + 
+  facet_wrap(~fct_relevel(masstype, "Uncorrected protein", "Corrected protein"), scales = "free_x") + 
+  geom_smooth(method = "lm", se = F, color = "black") + LGCtheme + 
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(x = "Body mass", y = "PC1", color = "", title = "GWFG PC1 Protein Correction") + 
+  theme(legend.position = c(0.05, 0.92)) 
+
+gwfg_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, fat_mass, predfat) %>% 
+  dplyr::rename("Uncorrected lipid" = "fat_mass", "Corrected lipid" = "predfat") %>% 
+  gather(key = "masstype", value = "massvalue", 5:6) %>% 
+  ggplot(aes(x = massvalue, y = PC1)) + geom_point(aes(color = sex)) + 
+  facet_wrap(~fct_relevel(masstype, "Uncorrected lipid", "Corrected lipid"), scales = "free_x") + 
+  geom_smooth(method = "lm", se = F, color = "black") + LGCtheme + 
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(x = "Body mass", y = "PC1", color = "", title = "GWFG PC1 Lipid Correction") + 
+  theme(legend.position = c(0.05, 0.92))
+
+
+```
+
+***
+
+### ROGO
+
+```{r pc correction rogo, echo=F, message=F, warning=F, fig.height=4, fig.width=6, fig.align="center"}
+#store mean value
+meanpro = mean(rogo_df$protein_mass)
+meanfat = mean(rogo_df$fat_mass)
+
+#use correction equation to calculate corrected mass
+rogo_df<-rogo_df %>% 
+  mutate(predpro = protein_mass - (summary(rpmod)$coefficients[1,1] + (summary(rpmod)$coefficients[2,1]*PC1)) + meanpro) %>% 
+  mutate(predfat = fat_mass - (summary(rfmod)$coefficients[1,1] + (summary(rfmod)$coefficients[2,1]*PC1)) + meanfat)
+
+rogo_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, protein_mass, predpro) %>% 
+  dplyr::rename("Uncorrected protein" = "protein_mass", "Corrected protein" = "predpro") %>% 
+  gather(key = "masstype", value = "massvalue", 5:6) %>% 
+  ggplot(aes(x = massvalue, y = PC1)) + geom_point(aes(color = sex)) + 
+  facet_wrap(~fct_relevel(masstype, "Uncorrected protein", "Corrected protein"), scales = "free_x") + 
+  geom_smooth(method = "lm", se = F, color = "black") + LGCtheme + 
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(x = "Body mass", y = "PC1", color = "", title = "ROGO PC1 Protein Correction") + 
+  theme(legend.position = c(0.05, 0.15)) 
+
+rogo_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, fat_mass, predfat) %>% 
+  dplyr::rename("Uncorrected lipid" = "fat_mass", "Corrected lipid" = "predfat") %>% 
+  gather(key = "masstype", value = "massvalue", 5:6) %>% 
+  ggplot(aes(x = massvalue, y = PC1)) + geom_point(aes(color = sex)) + 
+  facet_wrap(~fct_relevel(masstype, "Uncorrected lipid", "Corrected lipid"), scales = "free_x") + 
+  geom_smooth(method = "lm", se = F, color = "black") + LGCtheme + 
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(x = "Body mass", y = "PC1", color = "", title = "ROGO PC1 Lipid Correction") + 
+  theme(legend.position = c(0.05, 0.15))
+
+
+```
+
+***
+
+### SNGO
+
+```{r pc correction sngo, echo=F, message=F, warning=F, fig.height=4, fig.width=6, fig.align="center"}
+#store mean value
+meanpro = mean(sngo_df$protein_mass)
+meanfat = mean(sngo_df$fat_mass)
+
+#use correction equation to calculate corrected mass
+sngo_df<-sngo_df %>% 
+  mutate(predpro = protein_mass - (summary(spmod)$coefficients[1,1] + (summary(spmod)$coefficients[2,1]*PC1)) + meanpro) %>% 
+  mutate(predfat = fat_mass - (summary(sfmod)$coefficients[1,1] + (summary(sfmod)$coefficients[2,1]*PC1)) + meanfat)
+
+sngo_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, protein_mass, predpro) %>% 
+  dplyr::rename("Uncorrected protein" = "protein_mass", "Corrected protein" = "predpro") %>% 
+  gather(key = "masstype", value = "massvalue", 5:6) %>% 
+  ggplot(aes(x = massvalue, y = PC1)) + geom_point(aes(color = sex)) + 
+  facet_wrap(~fct_relevel(masstype, "Uncorrected protein", "Corrected protein"), scales = "free_x") + 
+  geom_smooth(method = "lm", se = F, color = "black") + LGCtheme + 
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(x = "Body mass", y = "PC1", color = "", title = "SNGO PC1 Protein Correction") + 
+  theme(legend.position = c(0.95, 0.92)) 
+
+sngo_df %>% 
+  dplyr::select(num_ID, species, sex, PC1, fat_mass, predfat) %>% 
+  dplyr::rename("Uncorrected lipid" = "fat_mass", "Corrected lipid" = "predfat") %>% 
+  gather(key = "masstype", value = "massvalue", 5:6) %>% 
+  ggplot(aes(x = massvalue, y = PC1)) + geom_point(aes(color = sex)) + 
+  facet_wrap(~fct_relevel(masstype, "Uncorrected lipid", "Corrected lipid"), scales = "free_x") + 
+  geom_smooth(method = "lm", se = F, color = "black") + LGCtheme + 
+  scale_color_manual(values = c("#13306dff","#de7065ff")) + 
+  labs(x = "Body mass", y = "PC1", color = "", title = "SNGO PC1 Lipid Correction") + 
+  theme(legend.position = c(0.95, 0.92))
+
+
+```
+
+
+
+```{r add addl vars and merge all three spp df, echo=F}
+addl_vars<-bc_data %>% 
+  dplyr::select(num_ID, collectiondate, month, season, dayssince) %>% 
+  dplyr::rename("collection_month" = "month") %>% 
+  separate(col = "collectiondate", into = c("month","day","year"), sep = "/") %>% 
+  mutate(month = as.numeric(month), 
+         day = as.numeric(day), 
+         year = as.numeric(year)) %>% 
+  mutate(collectiondate = paste(year, month, day,sep = "-")) %>% 
+  mutate(collectiondate = lubridate::as_date(collectiondate))
+
+pred_data<-bind_rows(gwfg_df,rogo_df,sngo_df) %>% 
+  left_join(addl_vars, by = "num_ID") %>% 
+  mutate(collection_month = as_factor(collection_month)) %>% 
+  mutate(agesex = as.factor(paste(age,sex,sep = "_"))) %>% 
+  mutate(species = as.factor(species))
+
+```
+
+```{r assign tukey plot order, echo=F}
+plotorder<-tribble(
+  ~lhs, ~comparison, ~order,
+  "November - October", "October - November", 1, 
+  "December - October", "October - December",2, 
+  "January - October","October - January", 3, 
+  "February - October","October - February", 4, 
+  "December - November","November - December", 5, 
+  "January - November", "November - January",6, 
+  "February - November", "November - February",7, 
+  "January - December", "December - January", 8, 
+  "February - December", "December - February", 9, 
+  "February - January","January - February",10
+)
+
+```
+
+
+<br><br>
+
+# Lipid Analysis 
+
+
+*Methods:* Using data pooled for all species, we tested the effects of demographic variables and time of collection. We used body size corrected lipid mass as a continuous response variable. We used species, age, sex, year of study, and month of collection as categorical predictor variables, and day of year of collection as a continuous predictor variable. Species contained three levels (greater white-fronted, snow, and Ross’s), age contained two levels (adult and juvenile), sex contained two levels (male and female), year of study contained two levels (winter 2015-2016 and winter 2016-2017), and month of collection contained five levels (October, November, December, January, and February) where samples from both years of the study were pooled by month. For the continuous predictor variable, we used the day of year on which the specimen was collected, wherein 2 October was equal to day 275 and the year of the study was not considered (both years were pooled). We used forward stepwise selection to investigate contributive predictors and relevant interactions between fixed effects based on presence in the top-performing model. We fit linear models using Program R and determined top models using corrected Akaike Information Criteria (AICc). Models with a ∆AICc < 2 were considered equivalent, and from equivalent models, we selected the most parsimonious model.
+
+## Model selection
+
+We first applied the same models with season(year of collection) as a random effect, but was unimportant, so we left out random effects. 
+
+#### Top model is corrected fat ~ month + species (no interaction)
+
+```{r lipid models, echo=F, warning=F, message=F}
+#models
+lipid.spp<-lm(pred_data$predfat~pred_data$species)
+
+lipid.month<-lm(pred_data$predfat~pred_data$collection_month)
+
+lipid.mospp<-lm(pred_data$predfat~pred_data$species + pred_data$collection_month)
+
+lipid.moxspp<-lm(pred_data$predfat~pred_data$species + pred_data$collection_month + pred_data$species:pred_data$collection_month)
+
+lipid.sex<-lm(pred_data$predfat~pred_data$sex)
+
+lipid.sppsex<-lm(pred_data$predfat~pred_data$species + pred_data$sex)
+
+lipid.age<-lm(pred_data$predfat~pred_data$age)
+
+lipid.agesex<-lm(pred_data$predfat~pred_data$age + pred_data$sex)
+
+lipid.sppagesex<-lm(pred_data$predfat~pred_data$species + pred_data$age + pred_data$sex)
+
+lipid.year<-lm(pred_data$predfat~pred_data$season)
+
+lipid.moyear<-lm(pred_data$predfat~pred_data$collection_month + pred_data$season)
+
+lipid.dayssince<-lm(pred_data$predfat~pred_data$dayssince)
+
+
+###create candidate model list for getting AICc table###
+Cand.mod       <-  list()
+Cand.mod[[1]]  <-  lipid.spp
+Cand.mod[[2]]  <-  lipid.month
+Cand.mod[[3]]  <-  lipid.mospp
+Cand.mod[[4]]  <-  lipid.moxspp
+Cand.mod[[5]]  <-  lipid.sex
+Cand.mod[[6]]  <-  lipid.sppsex
+Cand.mod[[7]]  <-  lipid.age
+Cand.mod[[8]]  <-  lipid.agesex
+Cand.mod[[9]]  <-  lipid.sppagesex
+Cand.mod[[10]]  <-  lipid.year
+Cand.mod[[11]]  <-  lipid.moyear
+Cand.mod[[12]]  <-  lipid.dayssince
+
+###create vector of the model names
+mod.names <-  c("lipid.spp","lipid.month","lipid.mospp","lipid.moxspp","lipid.sex","lipid.sppsex",
+                "lipid.age","lipid.agesex","lipid.sppagesex","lipid.year",
+                "lipid.moyear", "lipid.dayssince")
+
+###get AICc table for ranking predictive models--------------------------
+lm.aictab<-AICcmodavg::aictab(cand.set = Cand.mod, modnames = mod.names, second.ord = TRUE, sort = TRUE)
+```
+### Model comparisons
+
+*Table 3 in manuscript*
+```{r table 3, echo=FALSE}
+print(lm.aictab)
+logLik(lipid.mospp);logLik(lipid.moxspp);logLik(lipid.moyear);logLik(lipid.month)
+qpcR::akaike.weights(c(4098.33,4107.92,4193.31,4194.76))
+```
+
+
+### Selected model summary
+#### Top model is corrected fat ~ month + species (no interaction)
+
+*Table 4 in manuscript*
+```{r fat model, echo=F}
+tidymod<-broom::tidy(summary(lipid.mospp)) %>% 
+  mutate_at(2:4, round, 2) %>% 
+  mutate_at(5, round, 4) %>% 
+  mutate(term = snakecase::to_any_case(term))
+
+formattable(tidymod,align = c(rep("l",5)))
+```
+
+
+### Figure associated with best model
+
+*Figure 2 in manuscript*
+```{r final fat plot, warning=F, message=F, echo=F, fig.height=4, fig.width=9, fig.cap="Fig. 2 Temporal trends in the lipid stores (g) of greater white-fronted geese Anser albifrons frontalis, lesser snow geese Anser caerulescens caerulescens, and Ross’s geese Anser rossii collected in southeast Arkansas from October–February 2015–2016 and 2016–2017. The x-axis represents the day of year on which the specimen was collected, wherein October 2nd is equal to day 275 and March 1st is equal to day 60."}
+
+pred_data %>% 
+  mutate(species = fct_relevel(species, "GWFG", "SNGO","ROGO")) %>% 
+  ggplot(aes(dayssince,predfat)) + geom_point() + 
+  facet_wrap(~species, ncol=3, labeller = gooselabs) + 
+  stat_smooth(method = "lm", formula = y ~ poly(x,3), se = T, colour="black", level=0.95) +
+  xlab("\n Julian Date") + ylab("Size corrected lipid (g)\n") + 
+  theme_bw() + theme(legend.position="bottom") + 
+  theme(axis.text = element_text(size=15), axis.title=element_text(size=16)) + 
+  theme(strip.background = element_blank(), strip.text = element_text(size = 15, color = "black")) + 
+  theme(panel.grid = element_blank()) + 
+  scale_y_continuous(breaks = c(seq(0,600,100)),limits = c(0,600)) + 
+  scale_x_continuous(breaks = c(0,50,100,150),limits = c(0,150)) 
+```
+
+
+
+## Tukey multiple comparisons
+
+*Methods:* We conducted an analysis of variance to test for differences in corrected lipid and protein content among species and sex/age classes and within species. Tukey-Kramer least square means multiple comparison tests were used to quantify differences between groups. 
+
+```{r fat tukey comparisons, echo = FALSE,warning=FALSE}
+lipid.mo<-aov(formula = predfat ~ collection_month, data = pred_data)
+comp.tukey <- glht(lipid.mo, linfct=mcp(collection_month = "Tukey"))
+print(summary(comp.tukey))
+
+lipid.spp<-aov(formula = predfat ~ species, data = pred_data)
+comp.tukey <- glht(lipid.spp, linfct=mcp(species = "Tukey"))
+print(summary(comp.tukey))
+
+lipid.agesex<-aov(formula = predfat ~ agesex, data = pred_data)
+comp.tukey <- glht(lipid.agesex, linfct=mcp(agesex = "Tukey"))
+print(summary(comp.tukey))
+```
+
+
+*Figure 3 in manuscript*
+
+```{r fat tukey plot, echo=F, message=F, warning=F, fig.height=4, fig.width=9, fig.align="center", fig.cap="Fig. 3 Results of Tukey-Kramer multiple comparisons test of lipid stores (g) by collection month for arctic geese collected in southeast Arkansas from October–February 2015–2016 and 2016–2017. For greater white-fronted geese Anser albifrons frontalis, mean monthly lipid mass was higher in November than all other months and lower in January and February than all other months. For lesser snow Anser caerulescens caerulescens and Ross’s geese Anser rossii mean monthly lipid mass was lower in January and February than in November and December. Black error bars represent statistically significant differences between mean monthly values (p < 0.05)."}
+
+gwfg_df<-pred_data %>% 
+  filter(species == "GWFG")
+rogo_df<-pred_data %>% 
+  filter(species == "ROGO")
+sngo_df<-pred_data %>% 
+  filter(species == "SNGO")
+
+lipid.mogw<-aov(formula = predfat ~ collection_month, data = gwfg_df)
+comp.tukey <- glht(lipid.mogw, linfct=mcp(collection_month = "Tukey"))
+
+gwfglipidmo<-broom::tidy(summary(comp.tukey)) %>% 
+  mutate(species = "GWFG") %>% 
+  mutate(colorby = ifelse(p.value <= 0.05, "sig","insig"))
+
+lipid.moro<-aov(formula = predfat ~ collection_month, data = rogo_df)
+comp.tukey <- glht(lipid.moro, linfct=mcp(collection_month = "Tukey"))
+rogolipidmo<-broom::tidy(summary(comp.tukey)) %>% 
+  mutate(species = "ROGO") %>% 
+  mutate(colorby = ifelse(p.value <= 0.05, "sig","insig"))
+
+
+lipid.mosn<-aov(formula = predfat ~ collection_month, data = sngo_df)
+comp.tukey <- glht(lipid.mosn, linfct=mcp(collection_month = "Tukey"))
+sngolipidmo<-broom::tidy(summary(comp.tukey)) %>% 
+  mutate(species = "SNGO") %>% 
+  mutate(colorby = ifelse(p.value <= 0.05, "sig","insig"))
+
+lipidmoplot<-rbind(gwfglipidmo,rogolipidmo,sngolipidmo) %>% 
+  left_join(plotorder, by = "lhs") %>% 
+  mutate(comparison = fct_reorder(comparison, order, .desc = T)) %>% 
+  mutate(species = fct_relevel(species, "GWFG", "SNGO","ROGO"))
+
+ggplot() + geom_errorbar(data = lipidmoplot, aes(x = comparison,ymin = (estimate - 1.97*std.error), 
+                                               ymax = estimate + 1.97*std.error, color = colorby), width = 0.4) +
+  geom_point(data = lipidmoplot, aes(x = comparison, y = estimate, color = colorby)) + 
+  coord_flip() + geom_hline(yintercept = 0, lty = 2, color = "#bdbdbd") + 
+  theme(panel.grid = element_blank()) + facet_wrap(~species, ncol = 3, labeller = gooselabs) +
+  scale_color_manual(values = c("#bdbdbd","black")) + theme(legend.position = "none") + 
+  labs(x = "", y = "Differences in mean levels of collection month", title = "Lipid Tukey HSD") + 
+  theme(axis.text = element_text(size = 13), axis.title = element_text(size = 13)) + 
+  theme(strip.background = element_blank(), strip.text = element_text(size = 13, color = "black"))
+
+
+```
+
+<br><br>
+
+# Protein Analysis
+
+*Methods:* Using data pooled for all species, we tested the effects of demographic variables and time of collection. We used body size corrected protein mass as a continuous response variable. We used species, age, sex, year of study, and month of collection as categorical predictor variables, and day of year of collection as a continuous predictor variable. Species contained three levels (greater white-fronted, snow, and Ross’s), age contained two levels (adult and juvenile), sex contained two levels (male and female), year of study contained two levels (winter 2015-2016 and winter 2016-2017), and month of collection contained five levels (October, November, December, January, and February) where samples from both years of the study were pooled by month. For the continuous predictor variable, we used the day of year on which the specimen was collected, wherein 2 October was equal to day 275 and the year of the study was not considered (both years were pooled). We used forward stepwise selection to investigate contributive predictors and relevant interactions between fixed effects based on presence in the top-performing model. We fit linear models using Program R and determined top models using corrected Akaike Information Criteria (AICc). Models with a ∆AICc < 2 were considered equivalent, and from equivalent models, we selected the most parsimonious model.
+
+## Model selection
+
+We first applied the same models with season(year of collection) as a random effect, but was unimportant, so we left out random effects. 
+
+#### Top model is corrected protein ~ species + age*sex
+
+```{r model selection, echo=F, warning=F}
+#models
+protein.spp<-lm(pred_data$predpro~pred_data$species)
+
+protein.month<-lm(pred_data$predpro~pred_data$collection_month)
+
+protein.mospp<-lm(pred_data$predpro~pred_data$species + pred_data$collection_month)
+
+protein.moxspp<-lm(pred_data$predpro~pred_data$species + pred_data$collection_month + pred_data$species:pred_data$collection_month)
+
+protein.sex<-lm(pred_data$predpro~pred_data$sex)
+
+protein.sppsex<-lm(pred_data$predpro~pred_data$species + pred_data$sex)
+
+protein.age<-lm(pred_data$predpro~pred_data$age)
+
+protein.agesex<-lm(pred_data$predpro~pred_data$age + pred_data$sex)
+
+protein.sppagesex<-lm(pred_data$predpro~pred_data$species + pred_data$age + pred_data$sex)
+
+protein.year<-lm(pred_data$predpro~pred_data$season)
+
+protein.moyear<-lm(pred_data$predpro~pred_data$collection_month + pred_data$season)
+
+protein.dayssince<-lm(pred_data$predpro~pred_data$dayssince)
+
+protein.sppagexsex<-lm(pred_data$predpro~pred_data$species + pred_data$age + pred_data$sex + pred_data$age:pred_data$sex)
+
+###create candidate model list for getting AICc table###
+Cand.mod       <-  list()
+Cand.mod[[1]]  <-  protein.spp
+Cand.mod[[2]]  <-  protein.month
+Cand.mod[[3]]  <-  protein.mospp
+Cand.mod[[4]]  <-  protein.moxspp
+Cand.mod[[5]]  <-  protein.sex
+Cand.mod[[6]]  <-  protein.sppsex
+Cand.mod[[7]]  <-  protein.age
+Cand.mod[[8]]  <-  protein.agesex
+Cand.mod[[9]]  <-  protein.sppagesex
+Cand.mod[[10]]  <-  protein.year
+Cand.mod[[11]]  <-  protein.moyear
+Cand.mod[[12]]  <-  protein.dayssince
+Cand.mod[[13]]  <-  protein.sppagexsex
+
+###create vector of the model names
+mod.names <-  c("protein.spp","protein.month","protein.mospp","protein.moxspp","protein.sex","protein.sppsex",
+                "protein.age","protein.agesex","protein.sppagesex","protein.year",
+                "protein.moyear", "protein.dayssince","protein.sppagexsex")
+
+###get AICc table for ranking predictive models--------------------------
+lm.aictab<-AICcmodavg::aictab(cand.set = Cand.mod, modnames = mod.names, second.ord = TRUE, sort = TRUE)
+```
+### Model comparisons
+
+*Table 3 in manuscript*
+```{r table 3 part 2, echo=FALSE}
+print(lm.aictab)
+logLik(protein.sppagexsex);logLik(protein.sppagesex);logLik(protein.mospp);logLik(protein.sppsex)
+qpcR::akaike.weights(c(3686.07,3689.10,3725.44,3738.34))
+```
+
+### Selected model summary
+#### Top model is corrected protein ~ species + age*sex
+
+*Table 4 in manuscript*
+```{r pro model, echo=F}
+tidymod<-broom::tidy(summary(protein.sppagexsex)) %>% 
+  mutate_at(2:4, round, 2) %>% 
+  mutate_at(5, round, 4) %>% 
+  mutate(term = snakecase::to_any_case(term))
+
+formattable(tidymod, align = c(rep("l",5)))
+```
+
+### Figure associated with best model
+
+
+*Figure 4 in manuscript*
+```{r final protein boxplot, warning=F, message=F, echo=F, fig.height=4, fig.width=9, fig.align="center", fig.cap="Fig. 4 Temporal trends in protein stores by month of collection for greater white-fronted geese Anser albifrons frontalis, lesser snow geese Anser caerulescens caerulescens, and Ross’s geese Anser rossii collected in southeast Arkansas and used in our analysis of winter body condition from October–February 2015–2016 and 2016–2017."}
+
+pred_data %>% 
+  mutate(species = fct_relevel(species, "GWFG", "SNGO","ROGO")) %>% 
+  mutate(collection_month = fct_relevel(collection_month, "October", "November",
+                                        "December", "January", "February")) %>% 
+  mutate(collection_month2 = fct_recode(collection_month, Oct = "October", Nov = "November",
+                                        Dec = "December", Jan = "January", Feb = "February")) %>% 
+  ggplot(aes(collection_month2,predpro)) + stat_boxplot(geom ='errorbar', width = 0.5) +
+  geom_boxplot() + facet_wrap(~species, ncol=3,labeller = gooselabs) + 
+  geom_jitter(width = 0.25, height = 0.25, size=1.5, alpha = 0.7) + 
+  xlab("Month collected") + ylab("Size corrected protein (g)") + 
+  theme_bw() + theme(axis.text = element_text(size=15), legend.position="bottom") + 
+  theme(strip.background = element_blank(), strip.text = element_text(size = 15, color = "black")) +
+  theme(axis.title=element_text(size=16), panel.grid = element_blank()) + 
+  scale_y_continuous(breaks = c(200,300,400,500,600),limits = c(200,600))  
+```
+
+
+## Tukey multiple comparisons
+
+*Methods:* We conducted an analysis of variance to test for differences in corrected lipid and protein content among species and sex/age classes and within species. Tukey-Kramer least square means multiple comparison tests were used to quantify differences between groups. 
+
+```{r pro tukey, echo = FALSE,warning=FALSE}
+protein.mo<-aov(formula = predpro ~ collection_month, data = pred_data)
+comp.tukey <- glht(protein.mo, linfct=mcp(collection_month = "Tukey"))
+print(summary(comp.tukey))
+
+protein.spp<-aov(formula = predpro ~ species, data = pred_data)
+comp.tukey <- glht(protein.spp, linfct=mcp(species = "Tukey"))
+print(summary(comp.tukey))
+
+protein.agesex<-aov(formula = predpro ~ agesex, data = pred_data)
+comp.tukey <- glht(protein.agesex, linfct=mcp(agesex = "Tukey"))
+print(summary(comp.tukey))
+```
+
+
+
+
+*Figure 5 in manuscript*
+```{r protein tukey plot, echo=F, message=F, warning=F, fig.height=4, fig.width=9, fig.align="center", fig.cap="Fig. 5 Results of Tukey-Kramer multiple comparisons test of protein stores (g) by collection month for arctic geese collected in southeast Arkansas and used in our analysis of winter body condition from October–February 2015–2016 and 2016–2017. For greater white-fronted geese Anser albifrons frontalis, mean monthly protein mass was higher in January and February than in October. There was no difference in monthly mean protein mass for lesser snow Anser caerulescens caerulescens or Ross’s geese Anser rossii. Black error bars represent statistically significant differences between mean monthly values (p < 0.05)."}
+
+pro.mogw<-aov(formula = predpro ~ collection_month, data = gwfg_df)
+comp.tukey <- glht(pro.mogw, linfct=mcp(collection_month = "Tukey"))
+gwfgpromo<-broom::tidy(summary(comp.tukey)) %>% 
+  mutate(species = "GWFG") %>% 
+  mutate(colorby = ifelse(p.value <= 0.05, "sig","insig"))
+
+pro.moro<-aov(formula = predpro ~ collection_month, data = rogo_df)
+comp.tukey <- glht(pro.moro, linfct=mcp(collection_month = "Tukey"))
+rogopromo<-broom::tidy(summary(comp.tukey)) %>% 
+  mutate(species = "ROGO") %>% 
+  mutate(colorby = ifelse(p.value <= 0.05, "sig","insig"))
+
+
+pro.mosn<-aov(formula = predpro ~ collection_month, data = sngo_df)
+comp.tukey <- glht(pro.mosn, linfct=mcp(collection_month = "Tukey"))
+sngopromo<-broom::tidy(summary(comp.tukey)) %>% 
+  mutate(species = "SNGO") %>% 
+  mutate(colorby = ifelse(p.value <= 0.05, "sig","insig"))
+
+promoplot<-bind_rows(gwfgpromo,rogopromo,sngopromo) %>% 
+  left_join(plotorder, by = "lhs") %>% 
+  mutate(comparison = fct_reorder(comparison, order, .desc = T)) %>% 
+  mutate(species = fct_relevel(species, "GWFG", "SNGO","ROGO"))
+
+ggplot() + geom_errorbar(data = promoplot, aes(x = comparison,ymin = (estimate - 1.97*std.error), 
+                                               ymax = estimate + 1.97*std.error, color = colorby), width = 0.4) +
+  geom_point(data = promoplot, aes(x = comparison, y = estimate, color = colorby)) + 
+  coord_flip() + geom_hline(yintercept = 0, lty = 2, color = "#bdbdbd") + 
+  theme(panel.grid = element_blank()) + facet_wrap(~species, ncol = 3, labeller = gooselabs) +
+  scale_color_manual(values = c("#bdbdbd","black")) + theme(legend.position = "none") + 
+  labs(x = "", y = "Differences in mean levels of collection month", title = "Protein Tukey HSD") + 
+  theme(axis.text = element_text(size = 13), axis.title = element_text(size = 13)) + 
+  theme(strip.background = element_blank(), strip.text = element_text(size = 13, color = "black"))
+```
+
+*Data is available at:* Carlson, Lindsay Gray; Massey, Ethan; Osborne, Douglas (2019), Temporal Trends in Body Condition of Arctic Geese Wintering in the Mississippi Alluvial Valley, Dryad, Dataset, https://doi.org/10.5061/dryad.0gb5mkkwq
